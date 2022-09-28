@@ -74,7 +74,7 @@
                             <td>{{ $product->title }} <br> Created at: <br>{{ date("d-M-Y") }}</td>
                             <td>{{ $product->description }}</td>
                             <td>
-                                <dl class="row mb-0" style="height: 80px; overflow: hidden" id="variant">
+                                <dl class="row mb-0" style="height: 80px; overflow: hidden" id="variant{{$product->id}}">
                                     @if(count($product->product_variant_prices)>0)
                                         
                                         @foreach($product->product_variant_prices as $pvpv)
@@ -100,7 +100,7 @@
                                         @endforeach
                                     @endif 
                                 </dl>
-                                <button onclick="$('#variant').toggleClass('h-auto')" class="btn btn-sm btn-link">Show more</button>
+                                <button onclick="$('#variant{{$product->id}}').toggleClass('h-auto')" class="btn btn-sm btn-link">Show more</button>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">

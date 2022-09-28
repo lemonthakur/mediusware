@@ -1,6 +1,16 @@
 <template>
     <section>
         <div class="row">
+            <div class="col-md-12" v-if="errors.length > 0">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span v-for="error in errors" :key="error">
+                {{error}},
+                </span>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                </div>
+            </div>
             <div class="col-md-6">
                 <div class="card shadow mb-4">
                     <div class="card-body">
@@ -24,22 +34,10 @@
                         <h6 class="m-0 font-weight-bold text-primary">Media</h6>
                     </div>
                     <div class="card-body border">
-<!--                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions"  ></vue-dropzone>-->
-                        <label class="custom-file-upload" >
-                            <input type="file" accept="image/*" @change="processImage"
-                                   multiple>
-                            <i class="fas fa-cloud-upload-alt"></i> Custom Upload
-                        </label>
-                        <div v-if="images.length>0">
-                            <table>
-                                <td v-for="img in images" >
-                                    <img :src="img" height="80px" width="80px">
-                                </td>
-                            </table>
-                        </div>
-
+                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions" @vdropzone-success="someSuccessMethod"  @vdropzone-mounted="addImgs" @vdropzone-removedfile="removeThisFile(UploadFile)" ></vue-dropzone>
                     </div>
                 </div>
+
             </div>
 
             <div class="col-md-6">
@@ -62,7 +60,7 @@
                             </div>
                             <div class="col-md-8">
                                 <div class="form-group">
-                                    <label v-if="product_variant.length != 1" @click="product_variant.splice(index,1); checkVariant"
+                                    <label v-if="product_variant.length != 1" @click="product_variant.splice(index,1); checkVariant()"
                                            class="float-right text-primary"
                                            style="cursor: pointer;">Remove</label>
                                     <label v-else for="">.</label>
@@ -125,37 +123,65 @@ export default {
             required: true
         },
         products_details:{
+            type: Object,
+            required: true
+        },
+        selected_variants:{
+            type: Array,
+            required: true
+        },
+        price_array:{
+            type: Array,
+            required: true
+        },
+        image_array:{
             type: Array,
             required: true
         }
     },
     data() {
+    
         return {
+            errors: [],
+            validationErrors: '',
+            product_id: this.products_details.id,
             product_name: this.products_details.title,
             product_sku: this.products_details.sku,
             description: this.products_details.description,
-            images: [
-                this.products_details[0].images
-            ],
-            product_variant: [
-                {
-                    option: this.variants[0].id,
-                    tags: []
-                }
-            ],
-            product_variant_prices: [
-                this.products_details[0].product_prices
-            ],
+            images: [],
+            product_variant: this.selected_variants,
+            product_variant_prices: this.price_array,
             dropzoneOptions: {
-                url: 'https://httpbin.org/post',
+                url: '/image_upload',
                 thumbnailWidth: 150,
                 maxFilesize: 0.5,
-                headers: {"My-Awesome-Header": "header value"}
-            },
+                headers: {
+                    "X-CSRF-TOKEN": document.head.querySelector("[name=csrf-token]").content
+               }
+            }
 
         }
     },
     methods: {
+        addImgs() 
+        {
+            this.image_array.forEach((value, index) => {
+                this.images.push(value.existing_path);
+
+                var file = { size: value.size, name: value.name };
+                var url = value.path;
+                this.$refs.myVueDropzone.manuallyAddFile(file, url);
+            })
+        },
+        removeThisFile: function(thisFile){
+            this.$refs.MyDropzone.removeFile(thisFile)
+            console.log("File removed!")
+        },
+        // File upload response
+        someSuccessMethod(file, response){
+            this.images.push(response.image_url);
+        },
+
         // it will push a new object into product variant
         newVariant() {
             let all_variants = this.variants.map(el => el.id)
@@ -201,7 +227,36 @@ export default {
 
         // store product into database
         saveProduct() {
+
+            let formIsValid = true;
+            this.errors = [];
+            if (!this.product_name) {
+                this.errors.push('Product name is required');
+                formIsValid = false;
+            }
+            if (!this.product_sku) {
+                this.errors.push('Product sku is required');
+                formIsValid = false;
+            }
+            if (this.images.length < 1) {
+                this.errors.push('Product images is required');
+                formIsValid = false;
+            }
+            if (this.product_variant < 1) {
+                this.errors.push('Product variant is required');
+                formIsValid = false;
+            }
+            if (this.product_variant_prices < 1) {
+                this.errors.push('Product variant prices is required');
+                formIsValid = false;
+            }
+
+            if(!formIsValid){
+                return false;
+            }
+
             let product = {
+                id: this.product_id,
                 title: this.product_name,
                 sku: this.product_sku,
                 description: this.description,
@@ -211,10 +266,16 @@ export default {
             }
 
 
-            axios.post('/product', product).then(response => {
+            axios.put('/product/'+this.product_id, product).then(response => {
+                window.location.href = '/product';
                 console.log(response.data);
             }).catch(error => {
-                console.log(error);
+                this.errors = [];
+                let errorss = error.response.data.errors;
+                for (let field of Object.keys(errorss)) {
+                    this.errors.push(errorss[field][0]);
+                }
+                console.log(error.response.data.errors);
             })
 
             console.log(product);

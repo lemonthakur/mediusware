@@ -2307,8 +2307,6 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
-//
-//
 
 
 
@@ -2323,32 +2321,67 @@ __webpack_require__.r(__webpack_exports__);
       required: true
     },
     products_details: {
+      type: Object,
+      required: true
+    },
+    selected_variants: {
+      type: Array,
+      required: true
+    },
+    price_array: {
+      type: Array,
+      required: true
+    },
+    image_array: {
       type: Array,
       required: true
     }
   },
   data: function data() {
     return {
+      errors: [],
+      validationErrors: '',
+      product_id: this.products_details.id,
       product_name: this.products_details.title,
       product_sku: this.products_details.sku,
       description: this.products_details.description,
-      images: [this.products_details[0].images],
-      product_variant: [{
-        option: this.variants[0].id,
-        tags: []
-      }],
-      product_variant_prices: [this.products_details[0].product_prices],
+      images: [],
+      product_variant: this.selected_variants,
+      product_variant_prices: this.price_array,
       dropzoneOptions: {
-        url: 'https://httpbin.org/post',
+        url: '/image_upload',
         thumbnailWidth: 150,
         maxFilesize: 0.5,
         headers: {
-          "My-Awesome-Header": "header value"
+          "X-CSRF-TOKEN": document.head.querySelector("[name=csrf-token]").content
         }
       }
     };
   },
   methods: {
+    addImgs: function addImgs() {
+      var _this = this;
+
+      this.image_array.forEach(function (value, index) {
+        _this.images.push(value.existing_path);
+
+        var file = {
+          size: value.size,
+          name: value.name
+        };
+        var url = value.path;
+
+        _this.$refs.myVueDropzone.manuallyAddFile(file, url);
+      });
+    },
+    removeThisFile: function removeThisFile(thisFile) {
+      this.$refs.MyDropzone.removeFile(thisFile);
+      console.log("File removed!");
+    },
+    // File upload response
+    someSuccessMethod: function someSuccessMethod(file, response) {
+      this.images.push(response.image_url);
+    },
     // it will push a new object into product variant
     newVariant: function newVariant() {
       var all_variants = this.variants.map(function (el) {
@@ -2370,7 +2403,7 @@ __webpack_require__.r(__webpack_exports__);
     },
     // check the variant and render all the combination
     checkVariant: function checkVariant() {
-      var _this = this;
+      var _this2 = this;
 
       var tags = [];
       this.product_variant_prices = [];
@@ -2378,7 +2411,7 @@ __webpack_require__.r(__webpack_exports__);
         tags.push(item.tags);
       });
       this.getCombn(tags).forEach(function (item) {
-        _this.product_variant_prices.push({
+        _this2.product_variant_prices.push({
           title: item,
           price: 0,
           stock: 0
@@ -2401,7 +2434,42 @@ __webpack_require__.r(__webpack_exports__);
     },
     // store product into database
     saveProduct: function saveProduct() {
+      var _this3 = this;
+
+      var formIsValid = true;
+      this.errors = [];
+
+      if (!this.product_name) {
+        this.errors.push('Product name is required');
+        formIsValid = false;
+      }
+
+      if (!this.product_sku) {
+        this.errors.push('Product sku is required');
+        formIsValid = false;
+      }
+
+      if (this.images.length < 1) {
+        this.errors.push('Product images is required');
+        formIsValid = false;
+      }
+
+      if (this.product_variant < 1) {
+        this.errors.push('Product variant is required');
+        formIsValid = false;
+      }
+
+      if (this.product_variant_prices < 1) {
+        this.errors.push('Product variant prices is required');
+        formIsValid = false;
+      }
+
+      if (!formIsValid) {
+        return false;
+      }
+
       var product = {
+        id: this.product_id,
         title: this.product_name,
         sku: this.product_sku,
         description: this.description,
@@ -2409,15 +2477,25 @@ __webpack_require__.r(__webpack_exports__);
         product_variant: this.product_variant,
         product_variant_prices: this.product_variant_prices
       };
-      axios.post('/product', product).then(function (response) {
+      axios.put('/product/' + this.product_id, product).then(function (response) {
+        window.location.href = '/product';
         console.log(response.data);
       })["catch"](function (error) {
-        console.log(error);
+        _this3.errors = [];
+        var errorss = error.response.data.errors;
+
+        for (var _i = 0, _Object$keys = Object.keys(errorss); _i < _Object$keys.length; _i++) {
+          var field = _Object$keys[_i];
+
+          _this3.errors.push(errorss[field][0]);
+        }
+
+        console.log(error.response.data.errors);
       });
       console.log(product);
     },
     processImage: function processImage(e) {
-      var _this2 = this;
+      var _this4 = this;
 
       var files = e.target.files;
 
@@ -2428,7 +2506,7 @@ __webpack_require__.r(__webpack_exports__);
         var reader;
 
         (function () {
-          var this_ = _this2.images; // files.forEach(function (filed, index) {
+          var this_ = _this4.images; // files.forEach(function (filed, index) {
 
           for (i = 0; i < e.target.files.length; i++) {
             var file = files[i];
@@ -51289,6 +51367,28 @@ var render = function() {
   var _c = _vm._self._c || _h
   return _c("section", [
     _c("div", { staticClass: "row" }, [
+      _vm.errors.length > 0
+        ? _c("div", { staticClass: "col-md-12" }, [
+            _c(
+              "div",
+              {
+                staticClass: "alert alert-danger alert-dismissible fade show",
+                attrs: { role: "alert" }
+              },
+              [
+                _vm._l(_vm.errors, function(error) {
+                  return _c("span", { key: error }, [
+                    _vm._v("\n            " + _vm._s(error) + ",\n            ")
+                  ])
+                }),
+                _vm._v(" "),
+                _vm._m(0)
+              ],
+              2
+            )
+          ])
+        : _vm._e(),
+      _vm._v(" "),
       _c("div", { staticClass: "col-md-6" }, [
         _c("div", { staticClass: "card shadow mb-4" }, [
           _c("div", { staticClass: "card-body" }, [
@@ -51373,41 +51473,32 @@ var render = function() {
         ]),
         _vm._v(" "),
         _c("div", { staticClass: "card shadow mb-4" }, [
-          _vm._m(0),
+          _vm._m(1),
           _vm._v(" "),
-          _c("div", { staticClass: "card-body border" }, [
-            _c("label", { staticClass: "custom-file-upload" }, [
-              _c("input", {
-                attrs: { type: "file", accept: "image/*", multiple: "" },
-                on: { change: _vm.processImage }
-              }),
-              _vm._v(" "),
-              _c("i", { staticClass: "fas fa-cloud-upload-alt" }),
-              _vm._v(" Custom Upload\n                        ")
-            ]),
-            _vm._v(" "),
-            _vm.images.length > 0
-              ? _c("div", [
-                  _c(
-                    "table",
-                    _vm._l(_vm.images, function(img) {
-                      return _c("td", [
-                        _c("img", {
-                          attrs: { src: img, height: "80px", width: "80px" }
-                        })
-                      ])
-                    }),
-                    0
-                  )
-                ])
-              : _vm._e()
-          ])
+          _c(
+            "div",
+            { staticClass: "card-body border" },
+            [
+              _c("vue-dropzone", {
+                ref: "myVueDropzone",
+                attrs: { id: "dropzone", options: _vm.dropzoneOptions },
+                on: {
+                  "vdropzone-success": _vm.someSuccessMethod,
+                  "vdropzone-mounted": _vm.addImgs,
+                  "vdropzone-removedfile": function($event) {
+                    return _vm.removeThisFile(_vm.UploadFile)
+                  }
+                }
+              })
+            ],
+            1
+          )
         ])
       ]),
       _vm._v(" "),
       _c("div", { staticClass: "col-md-6" }, [
         _c("div", { staticClass: "card shadow mb-4" }, [
-          _vm._m(1),
+          _vm._m(2),
           _vm._v(" "),
           _c(
             "div",
@@ -51456,9 +51547,9 @@ var render = function() {
                           { domProps: { value: variant.id } },
                           [
                             _vm._v(
-                              "\n                                            " +
+                              "\n                                        " +
                                 _vm._s(variant.title) +
-                                "\n                                        "
+                                "\n                                    "
                             )
                           ]
                         )
@@ -51482,7 +51573,7 @@ var render = function() {
                               on: {
                                 click: function($event) {
                                   _vm.product_variant.splice(index, 1)
-                                  _vm.checkVariant
+                                  _vm.checkVariant()
                                 }
                               }
                             },
@@ -51531,7 +51622,7 @@ var render = function() {
           _c("div", { staticClass: "card-body" }, [
             _c("div", { staticClass: "table-responsive" }, [
               _c("table", { staticClass: "table" }, [
-                _vm._m(2),
+                _vm._m(3),
                 _vm._v(" "),
                 _c(
                   "tbody",
@@ -51623,6 +51714,23 @@ var render = function() {
   ])
 }
 var staticRenderFns = [
+  function() {
+    var _vm = this
+    var _h = _vm.$createElement
+    var _c = _vm._self._c || _h
+    return _c(
+      "button",
+      {
+        staticClass: "close",
+        attrs: {
+          type: "button",
+          "data-dismiss": "alert",
+          "aria-label": "Close"
+        }
+      },
+      [_c("span", { attrs: { "aria-hidden": "true" } }, [_vm._v("×")])]
+    )
+  },
   function() {
     var _vm = this
     var _h = _vm.$createElement
