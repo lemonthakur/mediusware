@@ -1,17 +1,6 @@
 <template>
     <section>
         <div class="row">
-            <div class="col-md-12" v-if="errors.length > 0">
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <span v-for="error in errors" :key="error">
-                {{error}},
-                </span>
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-                </div>
-            </div>
-
             <div class="col-md-6">
                 <div class="card shadow mb-4">
                     <div class="card-body">
@@ -35,7 +24,20 @@
                         <h6 class="m-0 font-weight-bold text-primary">Media</h6>
                     </div>
                     <div class="card-body border">
-                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions" @vdropzone-success="someSuccessMethod"></vue-dropzone>
+<!--                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions"  ></vue-dropzone>-->
+                        <label class="custom-file-upload" >
+                            <input type="file" accept="image/*" @change="processImage"
+                                   multiple>
+                            <i class="fas fa-cloud-upload-alt"></i> Custom Upload
+                        </label>
+                        <div v-if="images.length>0">
+                            <table>
+                                <td v-for="img in images" >
+                                    <img :src="img" height="80px" width="80px">
+                                </td>
+                            </table>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -60,7 +62,7 @@
                             </div>
                             <div class="col-md-8">
                                 <div class="form-group">
-                                    <label v-if="product_variant.length != 1" @click="product_variant.splice(index,1); checkVariant()"
+                                    <label v-if="product_variant.length != 1" @click="product_variant.splice(index,1); checkVariant"
                                            class="float-right text-primary"
                                            style="cursor: pointer;">Remove</label>
                                     <label v-else for="">.</label>
@@ -121,40 +123,39 @@ export default {
         variants: {
             type: Array,
             required: true
+        },
+        products_details:{
+            type: Array,
+            required: true
         }
     },
     data() {
         return {
-            errors: [],
-            validationErrors: '',
-            product_name: '',
-            product_sku: '',
-            description: '',
-            images: [],
+            product_name: this.products_details.title,
+            product_sku: this.products_details.sku,
+            description: this.products_details.description,
+            images: [
+                this.products_details[0].images
+            ],
             product_variant: [
                 {
                     option: this.variants[0].id,
                     tags: []
                 }
             ],
-            product_variant_prices: [],
+            product_variant_prices: [
+                this.products_details[0].product_prices
+            ],
             dropzoneOptions: {
-                url: '/image_upload',
+                url: 'https://httpbin.org/post',
                 thumbnailWidth: 150,
                 maxFilesize: 0.5,
-                headers: {
-                    "X-CSRF-TOKEN": document.head.querySelector("[name=csrf-token]").content
-               }
-            }
+                headers: {"My-Awesome-Header": "header value"}
+            },
+
         }
     },
     methods: {
-
-        // File upload response
-        someSuccessMethod(file, response){
-            this.images.push(response.image_url);
-        },
-
         // it will push a new object into product variant
         newVariant() {
             let all_variants = this.variants.map(el => el.id)
@@ -200,33 +201,6 @@ export default {
 
         // store product into database
         saveProduct() {
-            let formIsValid = true;
-            this.errors = [];
-            if (!this.product_name) {
-                this.errors.push('Product name is required');
-                formIsValid = false;
-            }
-            if (!this.product_sku) {
-                this.errors.push('Product sku is required');
-                formIsValid = false;
-            }
-            if (this.images.length < 1) {
-                this.errors.push('Product images is required');
-                formIsValid = false;
-            }
-            if (this.product_variant < 1) {
-                this.errors.push('Product variant is required');
-                formIsValid = false;
-            }
-            if (this.product_variant_prices < 1) {
-                this.errors.push('Product variant prices is required');
-                formIsValid = false;
-            }
-
-            if(!formIsValid){
-                return false;
-            }
-
             let product = {
                 title: this.product_name,
                 sku: this.product_sku,
@@ -236,25 +210,60 @@ export default {
                 product_variant_prices: this.product_variant_prices
             }
 
+
             axios.post('/product', product).then(response => {
-                window.location.href = '/product';
                 console.log(response.data);
             }).catch(error => {
-                this.errors = [];
-                let errorss = error.response.data.errors;
-                for (let field of Object.keys(errorss)) {
-                    this.errors.push(errorss[field][0]);
-                }
-                console.log(error.response.data.errors);
+                console.log(error);
             })
 
-            //console.log(product);
-        }
+            console.log(product);
+        },
+        processImage: function (e) {
+
+            const files = e.target.files;
+            if (e.target.files.length > 5) {
+                alert('You can use only 5 Image')
+            } else {
+                let this_ = this.images;
+                // files.forEach(function (filed, index) {
+                  for (var i = 0; i < e.target.files.length; i++){
+                    let file = files[i];
+                    var reader = new FileReader();
+                    reader.onload = (e) => {
+                        this_.push(e.target.result);
+                    }
+                    reader.readAsDataURL(file);
+                }
+
+            }
+            console.log(e.target.files);
+
+        },
 
 
     },
     mounted() {
-        console.log('Component mounted.')
+        // let product = {
+        //     title: this.product_name,
+        //     sku: this.product_sku,
+        //     description: this.description,
+        //     product_image: this.images,
+        //     product_variant: this.product_variant,
+        //     product_variant_prices: this.product_variant_prices
+        // }
+
     }
 }
 </script>
+<style>
+input[type="file"] {
+    display: none;
+}
+.custom-file-upload {
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 150px 150px;
+    cursor: pointer;
+}
+</style>

@@ -18,7 +18,7 @@
         <form action="" method="get" class="card-header">
             <div class="form-row justify-content-between">
                 <div class="col-md-2">
-                    <input type="text" name="title" value="{{ request()->title }}" placeholder="Product Title" class="form-control">
+                    <input type="text" name="title" placeholder="Product Title" class="form-control">
                 </div>
                 <div class="col-md-2">
                     <select name="variant" id="" class="form-control">
@@ -27,7 +27,7 @@
                         <optgroup label="{{ $v->title }}">
                             @if(count($v->product_variant) > 0)
                                 @foreach($v->product_variant->unique('variant') as $pvv)
-                                    <option value="{{ $pvv->id}}" @if(request()->variant==$pvv->id) selected @endif>{{ $pvv->variant}}</option>
+                                    <option value="{{ $pvv->id}}">{{ $pvv->variant}}</option>
                                 @endforeach
                             @endif
                         </optgroup>
@@ -40,12 +40,12 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text">Price Range</span>
                         </div>
-                        <input type="text" name="price_from" value="{{ request()->price_from }}" aria-label="First name" placeholder="From" class="form-control">
-                        <input type="text" name="price_to" value="{{ request()->price_to }}" aria-label="Last name" placeholder="To" class="form-control">
+                        <input type="text" name="price_from" aria-label="First name" placeholder="From" class="form-control">
+                        <input type="text" name="price_to" aria-label="Last name" placeholder="To" class="form-control">
                     </div>
                 </div>
                 <div class="col-md-2">
-                    <input type="date" name="date" value="{{ request()->date ? request()->date : '' }}" placeholder="Date" class="form-control">
+                    <input type="date" name="date" placeholder="Date" class="form-control">
                 </div>
                 <div class="col-md-1">
                     <button type="submit" class="btn btn-primary float-right"><i class="fa fa-search"></i></button>
